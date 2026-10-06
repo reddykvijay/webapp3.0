@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Badvel ISP Autonomous NOC Monitoring Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#0c1218;--panel:#131b24;--panel2:#18222d;--line:#243242;--line2:#2f4256;--text:#dce6f0;--muted:#8a9db2;--faint:#5f7288;
+  --ok:#46c28e;--okbg:rgba(70,194,142,.14);--warn:#f0b13a;--warnbg:rgba(240,177,58,.14);--crit:#ff6358;--critbg:rgba(255,99,88,.15);
+  --info:#5aa9ff;--infobg:rgba(90,169,255,.15);color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Archivo',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.45}
+.mono{font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.panel-h{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.panel-h h2{margin:0;font-size:15px;font-weight:600}
+.muted{color:var(--muted)}.faint{color:var(--faint)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:7px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font:500 13px 'Archivo',sans-serif;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--info)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--info);border-color:var(--info);color:#06121f}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-ok{background:var(--okbg);border-color:var(--ok);color:var(--ok)}
+.btn-danger{background:var(--critbg);border-color:var(--crit);color:var(--crit)}
+.btn-sm{padding:4px 9px;font-size:12px}
+:where(button,input,select,textarea,a,[tabindex]):focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.inp{width:100%;background:var(--bg);border:1px solid var(--line2);color:var(--text);border-radius:7px;padding:7px 10px;font:400 13px 'Archivo',sans-serif}
+.inp::placeholder{color:var(--faint)}
+textarea.inp{min-height:70px;resize:vertical}
+.fld>span{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:500;white-space:nowrap;border:1px solid transparent}
+.b-crit{background:var(--critbg);color:var(--crit);border-color:rgba(255,99,88,.35)}
+.b-warn{background:var(--warnbg);color:var(--warn);border-color:rgba(240,177,58,.35)}
+.b-ok{background:var(--okbg);color:var(--ok);border-color:rgba(70,194,142,.35)}
+.b-info{background:var(--infobg);color:var(--info);border-color:rgba(90,169,255,.35)}
+.b-mute{background:rgba(138,157,178,.12);color:var(--muted);border-color:var(--line2)}
+.tblwrap{overflow-x:auto;max-width:100%}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-weight:600;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--line2);background:var(--panel2);white-space:nowrap;user-select:none}
+.tbl th.sortable{cursor:pointer}
+.tbl th.sortable:hover{color:var(--text)}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
+.tbl td.wrap{white-space:normal;min-width:260px}
+.tbl tbody tr:hover td{background:rgba(255,255,255,.025)}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--muted);font:500 13.5px 'Archivo',sans-serif;cursor:pointer;text-align:left;white-space:nowrap}
+.nav-btn:hover{color:var(--text);background:var(--panel)}
+.nav-btn.on{color:var(--text);background:var(--panel2);border-color:var(--line2)}
+.nav-btn .cnt{margin-left:auto;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--critbg);color:var(--crit)}
+.nav-btn .cnt.i{background:var(--infobg);color:var(--info)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.kpi{padding:14px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 -1px -1px 0}
+.kpi .v{font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:4px}
+.zone{border:1px solid var(--line);border-left-width:4px;border-radius:9px;background:var(--panel2);padding:12px;cursor:pointer;text-align:left;color:var(--text);font-family:inherit;width:100%}
+.zone:hover{border-color:var(--line2)}
+.zone.sel{box-shadow:0 0 0 2px var(--info)}
+.zone.z-ok{border-left-color:var(--ok)}.zone.z-grid{border-left-color:var(--warn)}.zone.z-fault{border-left-color:var(--crit)}
+.pix{display:flex;flex-wrap:wrap;gap:3px;margin-top:10px}
+.pix i{display:block;width:9px;height:9px;border-radius:2px;background:#2c6e57}
+.pix i.g{background:var(--warn)}.pix i.f{background:var(--crit)}
+.overlay{position:fixed;inset:0;background:rgba(3,8,13,.7);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
+.overlay-side{justify-content:flex-end;padding:0}
+.dialog{background:var(--panel);border:1px solid var(--line2);border-radius:12px;width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.dialog.wide{max-width:760px}
+.dialog.drawer{max-width:720px;height:100%;max-height:100%;border-radius:0;border-width:0 0 0 1px;padding-top:env(safe-area-inset-top,0px)}
+.dlg-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+.dlg-head h3{margin:0;font-size:16px;font-weight:600}
+.dlg-body{padding:18px;overflow:auto}
+.code{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;overflow:auto;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.55;white-space:pre;color:#c9d7e6;max-height:56vh}
+.toasts{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;z-index:70;max-width:min(380px,calc(100vw - 28px))}
+.toast{padding:10px 14px;border-radius:8px;background:var(--panel2);border:1px solid var(--line2);border-left-width:4px;font-size:13px}
+.toast.ok{border-left-color:var(--ok)}.toast.warn{border-left-color:var(--warn)}.toast.info{border-left-color:var(--info)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:99px;font-size:12.5px;font-weight:500;border:1px solid}
+.pill i{width:8px;height:8px;border-radius:50%;background:currentColor;display:block}
+.pill.live{color:var(--ok);background:var(--okbg);border-color:rgba(70,194,142,.4)}
+.pill.mock{color:var(--warn);background:var(--warnbg);border-color:rgba(240,177,58,.4)}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+.seg button{background:transparent;border:0;color:var(--muted);padding:6px 12px;font:500 13px 'Archivo',sans-serif;cursor:pointer;border-right:1px solid var(--line2)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--info);color:#06121f}
+.trace{border-left:3px solid var(--line2);padding:6px 10px;margin-bottom:6px;background:var(--bg);border-radius:0 6px 6px 0;font-size:13px}
+.trace.in{border-left-color:var(--info)}.trace.ok{border-left-color:var(--ok)}.trace.warn{border-left-color:var(--warn)}.trace.crit{border-left-color:var(--crit)}
+@media (max-width:1023px){.sidenav{display:flex;overflow-x:auto;gap:6px;padding-bottom:6px}.sidenav .nav-btn{width:auto}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/plain" id="gas-src">/**
+ * Badvel ISP NOC - Google Sheets REST endpoint (Apps Script Web App)
+ * Extensions > Apps Script > paste this file > Deploy > New deployment > Web app
+ * Execute as: Me    Who has access: Anyone
+ */
+var SPREADSHEET_ID = '1qcx7IFXRUXE4yv-r6wYQ6MQR0X3T2fsxNQjSY3T2nIs'; // '' = use the bound spreadsheet
+var TZ = 'Asia/Kolkata';
+
+var TABS = {
+  Users_DB: ['UserName','ClientType','Schedule','24/7','BackupPower','Latitude','Longitude','Zone','AlarmHysteresis'],
+  Live_Feed: ['Timestamp','UserName','Event'],
+  Alerts: ['Timestamp','Severity','Alert Type','Zone','User / Entity','Message'],
+  Ongoing_Outages: ['Outage Start Time','Severity','Outage Type','Zone','User / Entity','Duration (Ongoing)','Status','Impact / Root Cause Assessment'],
+  Critical_Outages_Audit: ['Incident ID','Outage Start Time','Recovery Time','Duration','Zone / Feeder','User / Entity','Outage Type','Resolution Category','Action Taken / Root Cause Details','Technician / Verified By','Audit Status'],
+  Filtered_Events: ['Timestamp','UserName','Event','Zone / Sector','Filter Category','Reason for Filter','Subscriber Classification (Users_DB)'],
+  Customer_Notes: ['Date / Timestamp','UserName','Customer Name / Contact','Complaint / Issue Reported','Resolution Taken / Action Details','Root Cause Category','Status'],
+  Proposed_Modifications: ['UserName','FieldToModify','CurrentValue','ProposedValue','Reason / Evidence','Status','Implementation Notes']
+};
+
+function ss_(id) {
+  var sid = id || SPREADSHEET_ID;
+  return sid ? SpreadsheetApp.openById(sid) : SpreadsheetApp.getActiveSpreadsheet();
+}
+function out_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+function now_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss'); }
+function parse_(s) { return new Date(String(s).replace(' ', 'T') + '+05:30'); }
+function dur_(ms) {
+  var m = Math.max(0, Math.floor(ms / 60000));
+  if (m < 1) return '<1m';
+  var d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+  if (d) return d + 'd ' + h + 'h';
+  if (h) return h + 'h ' + ('0' + mm).slice(-2) + 'm';
+  return mm + 'm';
+}
+function sheet_(book, name) {
+  var sh = book.getSheetByName(name);
+  if (!sh) { sh = book.insertSheet(name); sh.appendRow(TABS[name]); sh.setFrozenRows(1); }
+  return sh;
+}
+function readTab_(book, name) {
+  var v = sheet_(book, name).getDataRange().getDisplayValues();
+  var headers = v[0], rows = [];
+  for (var i = 1; i < v.length; i++) {
+    if (v[i].join('') === '') continue;
+    var o = {};
+    for (var j = 0; j < headers.length; j++) o[headers[j]] = v[i][j];
+    rows.push(o);
+  }
+  return { headers: headers, rows: rows };
+}
+
+/** GET  ?action=all            -> every tab
+ *  GET  ?sheet=Users_DB        -> one tab
+ *  Optional: &id=<spreadsheetId> */
+function doGet(e) {
+  try {
+    var p = (e && e.parameter) || {};
+    var book = ss_(p.id);
+    if (p.sheet) {
+      if (!TABS[p.sheet]) return out_({ ok: false, error: 'Unknown sheet: ' + p.sheet });
+      var t = readTab_(book, p.sheet);
+      return out_({ ok: true, sheet: p.sheet, headers: t.headers, rows: t.rows });
+    }
+    var all = {};
+    for (var name in TABS) all[name] = readTab_(book, name);
+    return out_({ ok: true, generatedAt: now_(), sheets: all });
+  } catch (err) {
+    return out_({ ok: false, error: String(err) });
+  }
+}
+
+function appendRow_(book, name, row) {
+  var sh = sheet_(book, name), headers = TABS[name];
+  var vals = headers.map(function (h) { return row[h] !== undefined ? row[h] : ''; });
+  var rng = sh.getRange(sh.getLastRow() + 1, 1, 1, headers.length);
+  rng.setNumberFormat('@');          // keep timestamps as plain text
+  rng.setValues([vals]);
+}
+function findRow_(sh, match) {
+  var v = sh.getDataRange().getDisplayValues(), h = v[0];
+  for (var i = 1; i < v.length; i++) {
+    var ok = true;
+    for (var k in match) {
+      var c = h.indexOf(k);
+      if (c < 0 || String(v[i][c]) !== String(match[k])) { ok = false; break; }
+    }
+    if (ok) return i + 1;
+  }
+  return -1;
+}
+
+function handle_(book, req) {
+  if (req.action === 'append') {
+    if (!TABS[req.sheet]) return { ok: false, error: 'Unknown sheet: ' + req.sheet };
+    appendRow_(book, req.sheet, req.row || {});
+    return { ok: true };
+  }
+  if (req.action === 'update') {
+    if (!TABS[req.sheet]) return { ok: false, error: 'Unknown sheet: ' + req.sheet };
+    var sh = sheet_(book, req.sheet), r = findRow_(sh, req.match || {});
+    if (r < 0) return { ok: false, error: 'Row not found' };
+    var headers = TABS[req.sheet];
+    for (var k in req.set) {
+      var c = headers.indexOf(k);
+      if (c >= 0) { var cell = sh.getRange(r, c + 1); cell.setNumberFormat('@'); cell.setValue(req.set[k]); }
+    }
+    return { ok: true };
+  }
+  if (req.action === 'resolve') {
+    var og = sheet_(book, 'Ongoing_Outages');
+    var row = findRow_(og, { 'Outage Start Time': req.startTime, 'User / Entity': req.entity });
+    if (row < 0) return { ok: false, error: 'Outage not found in Ongoing_Outages' };
+    var v = og.getRange(row, 1, 1, 8).getDisplayValues()[0];
+    var recovery = now_();
+    var duration = dur_(parse_(recovery) - parse_(v[0]));
+    var audit = sheet_(book, 'Critical_Outages_Audit');
+    var id = 'INC-' + Utilities.formatDate(new Date(), TZ, 'yyyyMMdd') + '-' + ('00' + audit.getLastRow()).slice(-3);
+    appendRow_(book, 'Critical_Outages_Audit', {
+      'Incident ID': id, 'Outage Start Time': v[0], 'Recovery Time': recovery, 'Duration': duration,
+      'Zone / Feeder': v[3], 'User / Entity': v[4], 'Outage Type': v[2],
+      'Resolution Category': req.category || 'Action Taken',
+      'Action Taken / Root Cause Details': req.actionTaken || '',
+      'Technician / Verified By': req.technician || '',
+      'Audit Status': 'Closed'
+    });
+    og.deleteRow(row);
+    appendRow_(book, 'Live_Feed', { 'Timestamp': recovery, 'UserName': v[4], 'Event': 'CONNECTED' });
+    return { ok: true, incidentId: id, recoveryTime: recovery, duration: duration };
+  }
+  return { ok: false, error: 'Unknown action: ' + req.action };
+}
+
+/** POST body (text/plain JSON):
+ *  {action:'append', sheet, row:{...}}
+ *  {action:'update', sheet, match:{col:val}, set:{col:val}}
+ *  {action:'resolve', startTime, entity, category, actionTaken, technician}
+ *  {action:'batch', ops:[ ...any of the above... ]}   Optional: id */
+function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var req = JSON.parse(e.postData.contents);
+    var book = ss_(req.id);
+    if (req.action === 'batch') {
+      var results = (req.ops || []).map(function (op) { return handle_(book, op); });
+      return out_({ ok: results.every(function (r) { return r.ok; }), results: results });
+    }
+    return out_(handle_(book, req));
+  } catch (err) {
+    return out_({ ok: false, error: String(err) });
+  } finally {
+    lock.releaseLock();
+  }
+}
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+(function(){
+'use strict';
+var useState=React.useState,useEffect=React.useEffect,useMemo=React.useMemo,useCallback=React.useCallback;
+var h=React.createElement;
+function T(t){return function(p){return h.apply(null,[t,p].concat([].slice.call(arguments,1)));};}
+var div=T('div'),span=T('span'),button=T('button'),input=T('input'),select=T('select'),option=T('option'),label=T('label'),
+    table=T('table'),thead=T('thead'),tbody=T('tbody'),tr=T('tr'),th=T('th'),td=T('td'),pre=T('pre'),textarea=T('textarea'),
+    para=T('p'),h1=T('h1'),h2=T('h2'),h3=T('h3'),nav=T('nav'),header=T('header'),main=T('main'),section=T('section'),strong=T('strong'),
+    datalist=T('datalist');
+
+/* ---------- constants ---------- */
+var SHEET_ID_DEFAULT='1qcx7IFXRUXE4yv-r6wYQ6MQR0X3T2fsxNQjSY3T2nIs';
+var SCHEMAS={
+  Users_DB:['UserName','ClientType','Schedule','24/7','BackupPower','Latitude','Longitude','Zone','AlarmHysteresis'],
+  Live_Feed:['Timestamp','UserName','Event'],
+  Alerts:['Timestamp','Severity','Alert Type','Zone','User / Entity','Message'],
+  Ongoing_Outages:['Outage Start Time','Severity','Outage Type','Zone','User / Entity','Duration (Ongoing)','Status','Impact / Root Cause Assessment'],
+  Critical_Outages_Audit:['Incident ID','Outage Start Time','Recovery Time','Duration','Zone / Feeder','User / Entity','Outage Type','Resolution Category','Action Taken / Root Cause Details','Technician / Verified By','Audit Status'],
+  Filtered_Events:['Timestamp','UserName','Event','Zone / Sector','Filter Category','Reason for Filter','Subscriber Classification (Users_DB)'],
+  Customer_Notes:['Date / Timestamp','UserName','Customer Name / Contact','Complaint / Issue Reported','Resolution Taken / Action Details','Root Cause Category','Status'],
+  Proposed_Modifications:['UserName','FieldToModify','CurrentValue','ProposedValue','Reason / Evidence','Status','Implementation Notes']
+};
+var TAB_NAMES=Object.keys(SCHEMAS);
+var ZONE_DEFS=[
+  ['Gopavaram Rural',14],['North Porumamilla Rd',18],['North Outer',16],
+  ['Central-West College Rd',20],['Central Hospital Core',30],['Administrative Complex MPDO/DDO',16],
+  ['West Rameswaram',17],['South Mydukur Rd',22],['East Siddhartha Nagar',20]
+];
+var ZONES=ZONE_DEFS.map(function(z,i){var r=Math.floor(i/3),c=i%3;return {id:z[0],n:z[1],c:[14.7525-0.007*r,79.052+0.008*c]};});
+var ROOT_CAUSES=['Fiber Cut - Drop Cable','Fiber Cut - Duct','Fiber Cut - Aerial Span','Power Adapter / Loose Connector','Battery Degraded','ONU / Router Fault','Customer Premise Wi-Fi','Grid Power Cut','Other'];
+
+/* ---------- time helpers (all sheet timestamps are IST) ---------- */
+var IST_MS=330*60000;
+function pad(n,l){return String(n).padStart(l||2,'0');}
+function fmtTs(d){var x=new Date((d instanceof Date?d.getTime():d)+IST_MS);return x.getUTCFullYear()+'-'+pad(x.getUTCMonth()+1)+'-'+pad(x.getUTCDate())+' '+pad(x.getUTCHours())+':'+pad(x.getUTCMinutes())+':'+pad(x.getUTCSeconds());}
+function parseTs(s){var t=Date.parse(String(s||'').replace(' ','T')+'+05:30');return isNaN(t)?null:t;}
+function fmtDur(ms){ms=Math.max(0,ms);var m=Math.floor(ms/60000);if(m<1)return '<1m';var d=Math.floor(m/1440),hh=Math.floor((m%1440)/60),mm=m%60;if(d)return d+'d '+hh+'h';if(hh)return hh+'h '+pad(mm)+'m';return mm+'m';}
+function outsideSchedule(s,ms){
+  var m=/(\d\d):(\d\d)-(\d\d):(\d\d)(?:\s+(\w{3})-(\w{3}))?/.exec(s||'');if(!m)return false;
+  var x=new Date(ms+IST_MS),mins=x.getUTCHours()*60+x.getUTCMinutes();
+  var a=+m[1]*60+(+m[2]),b=+m[3]*60+(+m[4]);
+  var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],dayOk=true;
+  if(m[5]){var i=days.indexOf(m[5]),j=days.indexOf(m[6]),d=x.getUTCDay();dayOk=i<=j?(d>=i&&d<=j):(d>=i||d<=j);}
+  return !(dayOk&&mins>=a&&mins<=b);
+}
+function cmp(x,y){var nx=Number(x),ny=Number(y);if(x!==''&&y!==''&&x!=null&&y!=null&&!isNaN(nx)&&!isNaN(ny))return nx-ny;return String(x==null?'':x).localeCompare(String(y==null?'':y));}
+
+/* ---------- seed data ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+var STEMS=['ravi','lakshmi','venkat','srinivas','padma','mahesh','sunitha','prasad','anitha','kiran','swapna','naresh','bhavani','rajesh','jyothi','harish','vani','murali','divya','ramesh','sireesha','balu','kavitha','chandra','madhavi','suresh','rekha','nagaraju','sailaja','vamsi'];
+var TAILS=['','_el','.bdl','123','_fiber','1990','_home','77','.net','2k'];
+function classOf(u){return u.ClientType+' / Backup: '+u.BackupPower+' / 24/7: '+u['24/7'];}
+
+function buildSeed(){
+  var NOW=Date.now(),rng=mulberry32(42);
+  var ago=function(min){return fmtTs(NOW-min*60000);};
+  var KEY={
+    'skshoemart':{zone:'Central Hospital Core',type:'Critical Infra',sched:'24/7',a:'Yes',bk:'Yes',hy:5},
+    'mro_gopavaram':{zone:'Gopavaram Rural',type:'Critical Infra',sched:'24/7',a:'Yes',bk:'Yes',hy:5},
+    'Subbarao1987.el':{zone:'Administrative Complex MPDO/DDO',type:'Business',sched:'10:00-17:00 Mon-Sat',a:'No',bk:'No',hy:5},
+    'tumadevi':{zone:'East Siddhartha Nagar',type:'Residential',sched:'Any time',a:'No',bk:'No',hy:5},
+    'saviourlord':{zone:'South Mydukur Rd',type:'Residential',sched:'Any time',a:'No',bk:'Yes',hy:5},
+    'akshara_el':{zone:'Central-West College Rd',type:'Business',sched:'09:00-18:00 Mon-Sat',a:'No',bk:'No',hy:15},
+    'sharonp':{zone:'West Rameswaram',type:'Residential',sched:'Any time',a:'No',bk:'No',hy:5},
+    'bp.school':{zone:'North Porumamilla Rd',type:'Institution',sched:'08:30-16:30 Mon-Sat',a:'No',bk:'Yes',hy:5}
+  };
+  var users=[],used={};Object.keys(KEY).forEach(function(k){used[k]=1;});
+  function mk(name,o,z){return {UserName:name,ClientType:o.type,Schedule:o.sched,'24/7':o.a,BackupPower:o.bk,Latitude:(z.c[0]+(rng()-0.5)*0.008).toFixed(5),Longitude:(z.c[1]+(rng()-0.5)*0.008).toFixed(5),Zone:z.id,AlarmHysteresis:String(o.hy)};}
+  ZONES.forEach(function(z){
+    var keyed=Object.keys(KEY).filter(function(k){return KEY[k].zone===z.id;});
+    keyed.forEach(function(k){users.push(mk(k,KEY[k],z));});
+    for(var i=keyed.length;i<z.n;i++){
+      var name,tries=0;
+      do{name=STEMS[Math.floor(rng()*30)]+TAILS[Math.floor(rng()*10)]+(tries?tries:'');tries++;}while(used[name]);
+      used[name]=1;
+      var r=rng(),o;
+      if(r<0.07)o={type:'Critical Infra',sched:'24/7',a:'Yes',bk:'Yes'};
+      else if(r<0.2)o={type:'Business',sched:'09:00-18:00 Mon-Sat',a:'No',bk:rng()<0.4?'Yes':'No'};
+      else o={type:'Residential',sched:'Any time',a:'No',bk:rng()<0.12?'Yes':'No'};
+      o.hy=5;users.push(mk(name,o,z));
+    }
+  });
+  var inZone=function(z){return users.filter(function(u){return u.Zone===z;});};
+  var central=inZone('Central Hospital Core').filter(function(u){return u.UserName!=='skshoemart';});
+  var feed=[];
+  var add=function(min,u,ev){feed.push({Timestamp:ago(min),UserName:u,Event:ev});};
+  add(312,'skshoemart','DISCONNECTED');add(145,'mro_gopavaram','DISCONNECTED');add(48,'Subbarao1987.el','DISCONNECTED');
+  [[95,'DISCONNECTED'],[93,'CONNECTED'],[61,'DISCONNECTED'],[59,'CONNECTED'],[22,'DISCONNECTED'],[20,'CONNECTED']].forEach(function(e){add(e[0],'tumadevi',e[1]);});
+  var cluster=inZone('East Siddhartha Nagar').filter(function(u){return u.BackupPower==='No'&&u.UserName!=='tumadevi';}).slice(0,7);
+  cluster.forEach(function(u,i){add(58-i,u.UserName,'DISCONNECTED');add(33-i,u.UserName,'CONNECTED');});
+  for(var k=0;k<12;k++){var u=users[Math.floor(rng()*users.length)];if(!KEY[u.UserName])add(5+Math.floor(rng()*165),u.UserName,'CONNECTED');}
+  feed.sort(function(a,b){return a.Timestamp<b.Timestamp?1:-1;});
+
+  var ongoing=[
+    {'Outage Start Time':ago(312),Severity:'Critical','Outage Type':'Fiber Cut - Drop Cable',Zone:'Central Hospital Core','User / Entity':'skshoemart','Duration (Ongoing)':fmtDur(312*60000),Status:'Splice done, verifying link','Impact / Root Cause Assessment':'24/7 node with battery backup is down, so this is not a power cut. Drop cable damaged near the shop frontage and has been spliced; waiting for link-up confirmation.'},
+    {'Outage Start Time':ago(145),Severity:'Critical','Outage Type':'Backed-up 24/7 Node Offline',Zone:'Gopavaram Rural','User / Entity':'mro_gopavaram','Duration (Ongoing)':fmtDur(145*60000),Status:'Technician dispatched','Impact / Root Cause Assessment':'Backup power should still be holding. Offline for more than 2 hours points to an upstream rural fiber span or ONU fault.'},
+    {'Outage Start Time':ago(48),Severity:'Major','Outage Type':'Drop Inside Schedule Window',Zone:'Administrative Complex MPDO/DDO','User / Entity':'Subbarao1987.el','Duration (Ongoing)':fmtDur(48*60000),Status:'Monitoring','Impact / Root Cause Assessment':'Dropped during office hours without a feeder-wide power signature. Neighbours are online; likely premise or drop-side fault.'}
+  ];
+  var alerts=[
+    {Timestamp:ago(312),Severity:'Critical','Alert Type':'Fiber Cut Suspected',Zone:'Central Hospital Core','User / Entity':'skshoemart',Message:'Backed-up 24/7 node offline for 5h 12m while neighbours stay up.'},
+    {Timestamp:ago(145),Severity:'Critical','Alert Type':'Backed-up Node Offline',Zone:'Gopavaram Rural','User / Entity':'mro_gopavaram',Message:'24/7 node with backup power has not reconnected after 2h 25m.'},
+    {Timestamp:ago(48),Severity:'Warning','Alert Type':'Scheduled Node Offline',Zone:'Administrative Complex MPDO/DDO','User / Entity':'Subbarao1987.el',Message:'Dropped inside the 10:00-17:00 schedule window.'},
+    {Timestamp:ago(58),Severity:'Info','Alert Type':'Grid Trip Filtered',Zone:'East Siddhartha Nagar','User / Entity':'Feeder neighbours',Message:'7 unbacked nodes dropped within 7 seconds and reconnected 25 minutes later. Silenced as a routine power cut.'},
+    {Timestamp:ago(61),Severity:'Warning','Alert Type':'Flapping Node',Zone:'East Siddhartha Nagar','User / Entity':'tumadevi',Message:'3 bounces of about 2 minutes in the last 90 minutes.'},
+    {Timestamp:ago(420),Severity:'Warning','Alert Type':'Area Blackout',Zone:'South Mydukur Rd','User / Entity':'Feeder neighbours',Message:'Feeder dark for 38 minutes. 19 of 22 nodes dropped; 3 backed-up nodes held.'},
+    {Timestamp:ago(800),Severity:'Warning','Alert Type':'Battery Degraded',Zone:'South Mydukur Rd','User / Entity':'saviourlord',Message:'Backup lasted 17 minutes during the grid cut; expected about 40.'},
+    {Timestamp:ago(2900),Severity:'Warning','Alert Type':'Area Blackout',Zone:'North Outer','User / Entity':'Feeder neighbours',Message:'Feeder dark for 1h 10m.'}
+  ];
+  var n=0,aud=function(startMin,durMin,zone,user,type,cat,det,tech){
+    n++;return {'Incident ID':'INC-'+fmtTs(NOW-startMin*60000).slice(0,10).replace(/-/g,'')+'-'+pad(n,3),'Outage Start Time':ago(startMin),'Recovery Time':ago(startMin-durMin),Duration:fmtDur(durMin*60000),'Zone / Feeder':zone,'User / Entity':user,'Outage Type':type,'Resolution Category':cat,'Action Taken / Root Cause Details':det,'Technician / Verified By':tech,'Audit Status':'Closed'};};
+  var audit=[
+    aud(6400,185,'Central Hospital Core',central[0].UserName,'Fiber Cut - Aerial Span','Action Taken','Aerial span brought down by a tree near the hospital junction. Two closures re-spliced.','Venu M.'),
+    aud(6000,55,'Central-West College Rd','akshara_el','Fiber Cut - Drop Cable','Action Taken','Drop cable chewed by rodents. Replaced 40 m of drop.','Ramesh K.'),
+    aud(5200,240,'North Porumamilla Rd','bp.school','Fiber Cut - Duct','Action Taken','Excavator damaged the duct at the road crossing. Spliced and sealed.','Venu M.'),
+    aud(4300,2,'East Siddhartha Nagar','tumadevi','Flapping (2-min bounce)','Self-Healed','Recovered by itself after 2 minutes.','Auto-verified'),
+    aud(3600,41,'South Mydukur Rd','saviourlord','Backup Exhausted (Power Cut)','Action Taken','UPS ran 12 minutes instead of about 40. Battery weak; replacement advised.','Ramesh K.'),
+    aud(2900,2,'East Siddhartha Nagar','tumadevi','Flapping (2-min bounce)','Self-Healed','Recovered by itself after 2 minutes.','Auto-verified'),
+    aud(2400,120,'West Rameswaram','sharonp','ONU Fault','Action Taken','ONU replaced and optical power verified.','Venu M.'),
+    aud(1500,3,'East Siddhartha Nagar','tumadevi','Flapping (2-min bounce)','Self-Healed','Recovered by itself after 3 minutes.','Auto-verified'),
+    aud(800,17,'South Mydukur Rd','saviourlord','Backup Exhausted (Power Cut)','Self-Healed','Grid power returned before the node recovered on its own. Battery issue already flagged.','Auto-verified')
+  ];
+  var fe=[];
+  cluster.forEach(function(u,i){fe.push({Timestamp:ago(58-i),UserName:u.UserName,Event:'DISCONNECTED','Zone / Sector':u.Zone,'Filter Category':'Routine Power Cut','Reason for Filter':'Unbacked node dropped together with 6 feeder neighbours inside 7 seconds. Grid trip, not a fiber fault.','Subscriber Classification (Users_DB)':classOf(u)});});
+  var biz=users.filter(function(u){return u.ClientType==='Business'&&u.UserName!=='Subbarao1987.el'&&u.UserName!=='akshara_el';}).slice(0,2);
+  biz.forEach(function(u,i){fe.push({Timestamp:ago(210+i*35),UserName:u.UserName,Event:'DISCONNECTED','Zone / Sector':u.Zone,'Filter Category':'Out-of-Schedule','Reason for Filter':'Dropped outside its '+u.Schedule+' window. Office router switched off after hours.','Subscriber Classification (Users_DB)':classOf(u)});});
+  var home=users.filter(function(u){return u.ClientType==='Residential'&&u.BackupPower==='No'&&u.UserName!=='tumadevi'&&u.UserName!=='sharonp';}).slice(0,2);
+  home.forEach(function(u,i){fe.push({Timestamp:ago(150+i*20),UserName:u.UserName,Event:'DISCONNECTED','Zone / Sector':u.Zone,'Filter Category':'Unbacked Node','Reason for Filter':'Single home node without backup power dropped while neighbours stayed up. Treated as a premise power switch-off.','Subscriber Classification (Users_DB)':classOf(u)});});
+  var ak=users.filter(function(u){return u.UserName==='akshara_el';})[0];
+  fe.push({Timestamp:ago(95),UserName:'akshara_el',Event:'DISCONNECTED','Zone / Sector':ak.Zone,'Filter Category':'Hysteresis Buffered','Reason for Filter':'Reconnected after 6 minutes, inside its 15 minute alarm hysteresis window.','Subscriber Classification (Users_DB)':classOf(ak)});
+  fe.sort(function(a,b){return a.Timestamp<b.Timestamp?1:-1;});
+  var notes=[
+    {'Date / Timestamp':ago(80),UserName:'skshoemart','Customer Name / Contact':'Shop owner (called NOC)','Complaint / Issue Reported':'No internet since morning.','Resolution Taken / Action Details':'Found the drop cable cut near the shop frontage. Spliced about 25 m; waiting for link verification.','Root Cause Category':'Fiber Cut - Drop Cable',Status:'In Progress'},
+    {'Date / Timestamp':ago(780),UserName:'saviourlord','Customer Name / Contact':'Home customer','Complaint / Issue Reported':'Internet dies about 12 minutes into every power cut even though an inverter is installed.','Resolution Taken / Action Details':'Tested battery: 11.2 V under load. Advised replacing the 12 V 7 Ah battery.','Root Cause Category':'Battery Degraded',Status:'Open'},
+    {'Date / Timestamp':ago(1450),UserName:'tumadevi','Customer Name / Contact':'Home customer','Complaint / Issue Reported':'Internet drops for about 2 minutes several times a day.','Resolution Taken / Action Details':'Replaced the ONU power adapter and re-seated the connector. Monitoring for 7 days.','Root Cause Category':'Power Adapter / Loose Connector',Status:'Monitoring'},
+    {'Date / Timestamp':ago(2500),UserName:'sharonp','Customer Name / Contact':'Home customer','Complaint / Issue Reported':'Slow speeds in the evening.','Resolution Taken / Action Details':'Moved the Wi-Fi to a clear channel and relocated the router.','Root Cause Category':'Customer Premise Wi-Fi',Status:'Resolved'},
+    {'Date / Timestamp':ago(5100),UserName:'bp.school','Customer Name / Contact':'School office','Complaint / Issue Reported':'Computer lab offline after road works.','Resolution Taken / Action Details':'Spliced the damaged duct at the road crossing.','Root Cause Category':'Fiber Cut - Duct',Status:'Resolved'}
+  ];
+  var props=[
+    {UserName:'akshara_el',FieldToModify:'AlarmHysteresis',CurrentValue:'5',ProposedValue:'15','Reason / Evidence':'Office on a shared feeder with frequent grid dips under 15 minutes that recover by themselves.',Status:'Implemented','Implementation Notes':'Applied to Users_DB'},
+    {UserName:'sharonp',FieldToModify:'BackupPower',CurrentValue:'No',ProposedValue:'Yes','Reason / Evidence':'Field note: customer installed an inverter.',Status:'Pending Review','Implementation Notes':''}
+  ];
+  return {Users_DB:users,Live_Feed:feed,Alerts:alerts,Ongoing_Outages:ongoing,Critical_Outages_Audit:audit,Filtered_Events:fe,Customer_Notes:notes,Proposed_Modifications:props};
+}
+
+/* ---------- engine logic ---------- */
+function runSim(P,users,nowMs,ongoingUsers){
+  var zoneUsers=users.filter(function(u){return u.Zone===P.zone;});
+  var ts=fmtTs(nowMs),trace=[],R={Live_Feed:[],Filtered_Events:[],Alerts:[],Ongoing_Outages:[],Critical_Outages_Audit:[]},reconnect=[];
+  var node=users.filter(function(u){return u.UserName===P.node;})[0]||zoneUsers[0];
+  function drop(u,t){R.Live_Feed.push({Timestamp:t||ts,UserName:u.UserName,Event:'DISCONNECTED'});}
+  function filt(u,cat,reason){R.Filtered_Events.push({Timestamp:ts,UserName:u.UserName,Event:'DISCONNECTED','Zone / Sector':u.Zone,'Filter Category':cat,'Reason for Filter':reason,'Subscriber Classification (Users_DB)':classOf(u)});}
+  function alert(sev,type,ent,msg){R.Alerts.push({Timestamp:ts,Severity:sev,'Alert Type':type,Zone:P.zone,'User / Entity':ent,Message:msg});}
+  function outage(sev,type,ent,status,why){R.Ongoing_Outages.push({'Outage Start Time':ts,Severity:sev,'Outage Type':type,Zone:P.zone,'User / Entity':ent,'Duration (Ongoing)':'<1m',Status:status,'Impact / Root Cause Assessment':why});}
+  if(P.mode==='grid'){
+    if(P.scope==='zone'){
+      var down=zoneUsers.filter(function(u){return u.BackupPower!=='Yes';}),held=zoneUsers.length-down.length;
+      trace.push({kind:'in',text:down.length+' of '+zoneUsers.length+' nodes in '+P.zone+' sent DISCONNECTED within 45 seconds.'});
+      trace.push({kind:'in',text:held+' nodes with backup power stayed connected.'});
+      down.forEach(function(u){drop(u);filt(u,'Routine Power Cut','Unbacked node dropped together with its feeder neighbours. Grid trip, not a fiber fault.');});
+      trace.push({kind:'ok',text:'Decision: feeder power cut. '+down.length+' disconnects silenced and written to Filtered_Events. No outage raised.'});
+      if(down.length/zoneUsers.length>=0.6){alert('Warning','Area Blackout','Feeder neighbours',down.length+' of '+zoneUsers.length+' nodes dark; '+held+' backed-up nodes held.');trace.push({kind:'warn',text:'Area blackout alert logged to Alerts (counts toward the 24h blackout total).'});}
+      else{alert('Info','Grid Trip Filtered','Feeder neighbours',down.length+' unbacked nodes dropped together and were silenced.');}
+      reconnect=down;
+    }else if(node.BackupPower==='Yes'){
+      trace.push({kind:'ok',text:node.UserName+' has backup power, so a grid trip should not disconnect it. No event generated.'});
+    }else{
+      drop(node);filt(node,'Unbacked Node','Single home node without backup power dropped; treated as a premise power switch-off.');
+      trace.push({kind:'in',text:node.UserName+' sent DISCONNECTED.'});
+      trace.push({kind:'ok',text:'Decision: unbacked node, silenced and logged to Filtered_Events.'});
+      reconnect=[node];
+    }
+  }else if(P.mode==='fiber'){
+    if(P.scope==='zone'){
+      trace.push({kind:'in',text:'All '+zoneUsers.length+' nodes in '+P.zone+' sent DISCONNECTED, including '+zoneUsers.filter(function(u){return u.BackupPower==='Yes';}).length+' with backup power.'});
+      zoneUsers.forEach(function(u){drop(u);});
+      trace.push({kind:'crit',text:'Decision: backed-up nodes cannot lose power with the feeder, so this is a physical fault upstream. Raising a critical trunk outage.'});
+      outage('Critical','Fiber Cut - Zone Feeder Trunk','Feeder trunk: '+P.zone,'Simulated - investigating','Every node in the zone dropped, including backed-up 24/7 nodes. Trunk or splitter cut suspected.');
+      alert('Critical','Fiber Cut Suspected','Feeder trunk: '+P.zone,'Whole zone offline including backed-up nodes.');
+    }else{
+      trace.push({kind:'in',text:node.UserName+' sent DISCONNECTED.'});
+      var peers=zoneUsers.filter(function(u){return u.UserName!==node.UserName&&u.BackupPower!=='Yes';});
+      trace.push({kind:'in',text:'Neighbour check: '+peers.length+' unbacked neighbours in the zone are still connected.'});
+      if(node['24/7']!=='Yes'&&outsideSchedule(node.Schedule,nowMs)){
+        drop(node);filt(node,'Out-of-Schedule','Dropped outside its '+node.Schedule+' window.');
+        trace.push({kind:'ok',text:'Decision: outside the node schedule ('+node.Schedule+'). Silenced and logged to Filtered_Events.'});
+      }else if(ongoingUsers[node.UserName]){
+        trace.push({kind:'warn',text:node.UserName+' already has an open outage. No duplicate raised.'});
+      }else{
+        drop(node);
+        var sev=node['24/7']==='Yes'?'Critical':(node.BackupPower==='Yes'?'Major':'Minor');
+        trace.push({kind:'crit',text:'Decision: neighbours are up, so this is not a feeder power cut. Raising a '+sev+' outage.'});
+        outage(sev,'Fiber Cut - Drop Cable',node.UserName,'Simulated - investigating','Node dropped while neighbours on the same feeder stayed online. Drop-side fiber fault suspected.');
+        alert(sev==='Minor'?'Warning':sev==='Major'?'Warning':'Critical','Fiber Cut Suspected',node.UserName,'Isolated disconnect with healthy neighbours.');
+      }
+    }
+  }else{
+    var hy=Number(node.AlarmHysteresis)||5,b=Math.max(1,Number(P.bounce)||2);
+    R.Live_Feed.push({Timestamp:fmtTs(nowMs-b*60000),UserName:node.UserName,Event:'DISCONNECTED'});
+    R.Live_Feed.push({Timestamp:ts,UserName:node.UserName,Event:'CONNECTED'});
+    trace.push({kind:'in',text:node.UserName+' disconnected and reconnected after '+b+' min. Its alarm hysteresis is '+hy+' min.'});
+    if(b<hy){
+      filt(node,'Hysteresis Buffered','Reconnected after '+b+' minutes, inside the '+hy+' minute hysteresis window.');
+      trace.push({kind:'ok',text:'Decision: buffered. No alarm raised, event logged to Filtered_Events.'});
+    }else{
+      alert('Warning','Hysteresis Exceeded',node.UserName,'Drop lasted '+b+' min, longer than the '+hy+' min hysteresis window. Recovered by itself.');
+      R.Critical_Outages_Audit.push({'Incident ID':'__ID__','Outage Start Time':fmtTs(nowMs-b*60000),'Recovery Time':ts,Duration:fmtDur(b*60000),'Zone / Feeder':node.Zone,'User / Entity':node.UserName,'Outage Type':'Flapping ('+b+'-min bounce)','Resolution Category':'Self-Healed','Action Taken / Root Cause Details':'Simulated bounce that outlasted hysteresis and recovered by itself.','Technician / Verified By':'Auto-verified','Audit Status':'Closed'});
+      trace.push({kind:'warn',text:'Decision: bounce outlasted hysteresis. Alert raised and a self-healed incident written to the audit ledger.'});
+    }
+  }
+  return {trace:trace,rows:R,reconnect:reconnect};
+}
+
+function runAudit(data){
+  var users={};data.Users_DB.forEach(function(u){users[u.UserName]=u;});
+  var ex=data.Proposed_Modifications;
+  function has(u,f){return ex.some(function(r){return r.UserName===u&&r.FieldToModify===f&&r.Status!=='Rejected';});}
+  var out=[],notes=[];
+  var flap={};
+  data.Critical_Outages_Audit.forEach(function(r){var s=parseTs(r['Outage Start Time']),e=parseTs(r['Recovery Time']);if(s&&e&&e-s<=5*60000){var u=r['User / Entity'];flap[u]=(flap[u]||0)+1;}});
+  var by={};data.Live_Feed.forEach(function(f){(by[f.UserName]=by[f.UserName]||[]).push({t:parseTs(f.Timestamp),e:f.Event});});
+  Object.keys(by).forEach(function(u){var ev=by[u].filter(function(x){return x.t;}).sort(function(a,b){return a.t-b.t;}),c=0;for(var i=0;i<ev.length-1;i++){if(ev[i].e==='DISCONNECTED'&&ev[i+1].e==='CONNECTED'&&ev[i+1].t-ev[i].t<=5*60000)c++;}if(c)flap[u]=(flap[u]||0)+c;});
+  Object.keys(flap).forEach(function(u){
+    var us=users[u];if(!us||flap[u]<2||Number(us.AlarmHysteresis)>=15||has(u,'AlarmHysteresis'))return;
+    out.push({UserName:u,FieldToModify:'AlarmHysteresis',CurrentValue:us.AlarmHysteresis,ProposedValue:'15','Reason / Evidence':flap[u]+' bounces of 5 minutes or less across the audit ledger and live feed. A 15 minute buffer would have absorbed them.',Status:'Pending Review','Implementation Notes':''});
+    notes.push('Flapping node: '+u+' ('+flap[u]+' short bounces) - suggest 15 min hysteresis.');
+  });
+  var bat={};
+  data.Critical_Outages_Audit.forEach(function(r){if(/Backup Exhausted/i.test(r['Outage Type']))bat[r['User / Entity']]=(bat[r['User / Entity']]||0)+1;});
+  data.Customer_Notes.forEach(function(r){if(/Battery/i.test(r['Root Cause Category']))bat[r.UserName]=(bat[r.UserName]||0)+1;});
+  Object.keys(bat).forEach(function(u){
+    var us=users[u];if(!us||bat[u]<2||us.BackupPower!=='Yes'||has(u,'BackupPower'))return;
+    out.push({UserName:u,FieldToModify:'BackupPower',CurrentValue:'Yes',ProposedValue:'Degraded','Reason / Evidence':bat[u]+' battery signals (backup-exhausted incidents and technician notes). Backup runtime is shorter than the grid cuts it must cover.',Status:'Pending Review','Implementation Notes':''});
+    notes.push('Battery degradation: '+u+' - flag backup power as degraded and schedule a replacement.');
+  });
+  var fz={};
+  data.Critical_Outages_Audit.forEach(function(r){if(/^Fiber Cut/i.test(r['Outage Type']))fz[r['Zone / Feeder']]=(fz[r['Zone / Feeder']]||0)+1;});
+  data.Ongoing_Outages.forEach(function(r){if(/^Fiber Cut/i.test(r['Outage Type']))fz[r.Zone]=(fz[r.Zone]||0)+1;});
+  Object.keys(fz).forEach(function(z){
+    var key='ZONE: '+z;if(fz[z]<2||has(key,'RouteHardening'))return;
+    out.push({UserName:key,FieldToModify:'RouteHardening',CurrentValue:'Single physical path',ProposedValue:'Add diverse or underground path','Reason / Evidence':fz[z]+' fiber cuts in this zone (closed and open incidents). Repeated cuts on one path justify a protected route.',Status:'Pending Review','Implementation Notes':''});
+    notes.push('Route hardening: '+z+' ('+fz[z]+' fiber cuts).');
+  });
+  return {proposals:out,notes:notes,stats:{audit:data.Critical_Outages_Audit.length,notes:data.Customer_Notes.length,feed:data.Live_Feed.length}};
+}
+
+/* ---------- UI primitives ---------- */
+var ICONS={
+  refresh:'M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5',
+  sliders:'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+  code:'M16 18l6-6-6-6M8 6l-6 6 6 6',
+  check:'M20 6L9 17l-5-5',
+  search:'M21 21l-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
+  x:'M18 6L6 18M6 6l12 12',
+  plus:'M12 5v14M5 12h14',
+  bolt:'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+  alert:'M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
+  spark:'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z',
+  grid:'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
+  list:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  users:'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
+  shield:'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  filter:'M22 3H2l8 9.5V19l4 2v-8.5L22 3z',
+  note:'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h8',
+  history:'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2',
+  copy:'M9 9h11v11H9zM5 15H4V4h11v1',
+  play:'M6 4l14 8-14 8z'
+};
+function Icon(name,size){size=size||16;return h('svg',{width:size,height:size,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':'true',style:{flex:'none'}},h('path',{d:ICONS[name]}));}
+function Badge(text,tone){return span({className:'badge b-'+tone},text);}
+function sevTone(s){return s==='Critical'?'crit':(s==='Major'||s==='High'||s==='Warning'||s==='Minor')?'warn':s==='Info'?'info':'mute';}
+function statusTone(s){s=String(s||'');if(/resolved|closed|implemented|staged|verified/i.test(s))return 'ok';if(/pending|open|dispatched|investigat/i.test(s))return 'warn';if(/rejected/i.test(s))return 'mute';return 'info';}
+function Field(lbl,child,cls){return label({className:'fld '+(cls||'')},span(null,lbl),child);}
+
+function Modal(props){
+  useEffect(function(){var k=function(e){if(e.key==='Escape')props.onClose();};window.addEventListener('keydown',k);return function(){window.removeEventListener('keydown',k);};},[props.onClose]);
+  return div({className:'overlay'+(props.side?' overlay-side':''),onClick:function(e){if(e.target===e.currentTarget)props.onClose();}},
+    div({className:'dialog'+(props.side?' drawer':'')+(props.wide?' wide':''),role:'dialog','aria-modal':'true','aria-label':props.title},
+      div({className:'dlg-head'},h3(null,props.title),button({className:'btn btn-sm','aria-label':'Close',onClick:props.onClose},Icon('x',14))),
+      div({className:'dlg-body'},props.children)));
+}
+function Seg(props){return div({className:'seg',role:'group'},props.options.map(function(o){return button({key:o[0],className:props.value===o[0]?'on':'',onClick:function(){props.onChange(o[0]);}},o[1]);}));}
+function SearchBox(props){return div({style:{position:'relative',minWidth:200,flex:'1 1 220px',maxWidth:340}},
+  span({style:{position:'absolute',left:10,top:9,color:'var(--faint)'}},Icon('search',14)),
+  input({className:'inp',style:{paddingLeft:32},placeholder:props.placeholder,value:props.value,onChange:function(e){props.onChange(e.target.value);},'aria-label':props.placeholder}));}
+
+function DataTable(props){
+  var cols=props.cols,rows=props.rows,pageSize=props.pageSize||0;
+  var st=useState(props.defaultSort||null),sort=st[0],setSort=st[1];
+  var pg=useState(0),page=pg[0],setPage=pg[1];
+  useEffect(function(){setPage(0);},[rows.length]);
+  var sorted=useMemo(function(){
+    if(!sort)return rows;
+    var c=cols.filter(function(x){return x.key===sort.key;})[0];
+    var val=c&&c.sortVal?c.sortVal:function(r){return r[sort.key];};
+    return rows.slice().sort(function(a,b){var r=cmp(val(a),val(b));return sort.dir==='asc'?r:-r;});
+  },[rows,sort,cols]);
+  var total=sorted.length,pages=pageSize?Math.max(1,Math.ceil(total/pageSize)):1,cur=Math.min(page,pages-1);
+  var view=pageSize?sorted.slice(cur*pageSize,cur*pageSize+pageSize):sorted;
+  function toggle(c){if(c.nosort)return;setSort(function(s){return s&&s.key===c.key?{key:c.key,dir:s.dir==='asc'?'desc':'asc'}:{key:c.key,dir:'asc'};});}
+  return div(null,
+    div({className:'tblwrap'},table({className:'tbl'},
+      thead(null,tr(null,cols.map(function(c){
+        var on=sort&&sort.key===c.key;
+        return th({key:c.key,className:c.nosort?'':'sortable',onClick:function(){toggle(c);},'aria-sort':on?(sort.dir==='asc'?'ascending':'descending'):'none'},c.label+(on?(sort.dir==='asc'?' \u25B2':' \u25BC'):''));
+      }))),
+      tbody(null,view.map(function(r,i){return tr({key:i},cols.map(function(c){
+        var cell=c.render?c.render(r):r[c.key];
+        return td({key:c.key,className:(c.wrap?'wrap ':'')+(c.mono?'mono':'')},cell);}));})))),
+    total===0?div({className:'empty'},props.empty||'No records match.'):null,
+    pageSize&&total>pageSize?div({style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',gap:10,flexWrap:'wrap'}},
+      span({className:'muted'},'Showing '+(cur*pageSize+1)+'-'+Math.min(total,cur*pageSize+pageSize)+' of '+total),
+      div({style:{display:'flex',gap:8}},button({className:'btn btn-sm',disabled:cur===0,onClick:function(){setPage(cur-1);}},'Previous'),button({className:'btn btn-sm',disabled:cur>=pages-1,onClick:function(){setPage(cur+1);}},'Next'))):null);
+}
+function Panel(title,right,body){return section({className:'panel'},div({className:'panel-h'},h2(null,title),right||null),body);}
+
+/* ---------- App ---------- */
+function loadCfg(){var d={url:'',sheetId:SHEET_ID_DEFAULT,interval:30};try{var s=window.localStorage.getItem('badvel_noc_cfg');if(s){var o=JSON.parse(s);return {url:o.url||'',sheetId:o.sheetId||SHEET_ID_DEFAULT,interval:Number(o.interval)||30};}}catch(e){}return d;}
+function saveCfg(c){try{window.localStorage.setItem('badvel_noc_cfg',JSON.stringify(c));}catch(e){}}
+
+function App(){
+  var sData=useState(buildSeed),data=sData[0],setData=sData[1];
+  var sCfg=useState(loadCfg),cfg=sCfg[0],setCfg=sCfg[1];
+  var sMode=useState('mock'),mode=sMode[0],setMode=sMode[1];
+  var sSync=useState(false),syncing=sSync[0],setSyncing=sSync[1];
+  var sLast=useState(null),lastSync=sLast[0],setLastSync=sLast[1];
+  var sErr=useState(''),syncErr=sErr[0],setSyncErr=sErr[1];
+  var sTab=useState('overview'),tab=sTab[0],setTab=sTab[1];
+  var sModal=useState(null),modal=sModal[0],setModal=sModal[1];
+  var sToast=useState([]),toasts=sToast[0],setToasts=sToast[1];
+  var sNow=useState(Date.now()),now=sNow[0],setNow=sNow[1];
+  var sZone=useState(ZONES[4].id),simZone=sZone[0],setSimZone=sZone[1];
+
+  useEffect(function(){var id=setInterval(function(){setNow(Date.now());},20000);return function(){clearInterval(id);};},[]);
+  var toast=useCallback(function(msg,kind){var id=Math.random();setToasts(function(t){return t.concat([{id:id,msg:msg,kind:kind||'info'}]);});setTimeout(function(){setToasts(function(t){return t.filter(function(x){return x.id!==id;});});},5200);},[]);
+
+  var doSync=useCallback(function(c,manual){
+    if(!c.url){setMode('mock');if(manual)toast('No Web App URL set. Showing embedded mock data.','warn');return Promise.resolve();}
+    setSyncing(true);
+    var u=c.url+(c.url.indexOf('?')>=0?'&':'?')+'action=all&id='+encodeURIComponent(c.sheetId);
+    return fetch(u).then(function(res){if(!res.ok)throw new Error('HTTP '+res.status);return res.json();}).then(function(j){
+      if(!j.ok)throw new Error(j.error||'Endpoint returned an error');
+      setData(function(prev){var nx=Object.assign({},prev);TAB_NAMES.forEach(function(n){if(j.sheets&&j.sheets[n])nx[n]=j.sheets[n].rows;});return nx;});
+      setMode('live');setLastSync(new Date());setSyncErr('');if(manual)toast('Synced all 8 tabs from Google Sheets.','ok');
+    }).catch(function(err){
+      setMode('mock');setSyncErr(String(err.message||err));
+      if(manual)toast('Could not reach the Google Sheets endpoint ('+(err.message||err)+'). Showing local data. Check the URL, the deployment access setting, and that this page is allowed to make network requests.','warn');
+    }).then(function(){setSyncing(false);});
+  },[toast]);
+  var sync=useCallback(function(manual){return doSync(cfg,manual);},[cfg,doSync]);
+  useEffect(function(){if(cfg.url)doSync(cfg,false);},[]);
+  useEffect(function(){if(!cfg.url)return;var id=setInterval(function(){doSync(cfg,false);},Math.max(5,cfg.interval)*1000);return function(){clearInterval(id);};},[cfg,doSync]);
+
+  var post=useCallback(function(payload){
+    if(mode!=='live'||!cfg.url)return Promise.resolve({ok:false,local:true});
+    return fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({},payload,{id:cfg.sheetId}))})
+      .then(function(r){return r.json();}).then(function(j){if(!j.ok)throw new Error(j.error||'Write failed');return j;})
+      .catch(function(err){toast('Saved locally, but the sheet write failed: '+(err.message||err),'warn');return {ok:false,failed:true};});
+  },[mode,cfg,toast]);
+  function report(res,msg){if(res.local)toast(msg+' (mock mode: not written to the sheet).','info');else if(res.ok)toast(msg+' and written to the sheet.','ok');}
+
+  /* derived */
+  var D=useMemo(function(){
+    var last={};
+    data.Live_Feed.forEach(function(f){var t=parseTs(f.Timestamp)||0;if(!last[f.UserName]||t>=last[f.UserName].t)last[f.UserName]={t:t,e:f.Event};});
+    var offline={};data.Users_DB.forEach(function(u){if(last[u.UserName]&&last[u.UserName].e==='DISCONNECTED')offline[u.UserName]=1;});
+    var zones=ZONES.map(function(z){
+      var us=data.Users_DB.filter(function(u){return u.Zone===z.id;});
+      var off=us.filter(function(u){return offline[u.UserName];});
+      var unb=off.filter(function(u){return u.BackupPower!=='Yes';});
+      var ong=data.Ongoing_Outages.filter(function(r){return r.Zone===z.id;});
+      var status=ong.length?'fault':(unb.length>=3?'grid':'ok');
+      return {id:z.id,users:us,off:off,ong:ong,status:status};
+    });
+    var today=fmtTs(now).slice(0,10);
+    return {
+      offline:offline,zones:zones,
+      total:data.Users_DB.length,
+      online:data.Users_DB.length-Object.keys(offline).length,
+      crit:data.Ongoing_Outages.filter(function(r){return r.Severity==='Critical';}).length,
+      filteredToday:data.Filtered_Events.filter(function(r){return r['Filter Category']==='Routine Power Cut'&&String(r.Timestamp).slice(0,10)===today;}).length,
+      blackouts:data.Alerts.filter(function(r){var t=parseTs(r.Timestamp);return r['Alert Type']==='Area Blackout'&&t&&t>=now-86400000;}).length,
+      pending:data.Proposed_Modifications.filter(function(r){return r.Status==='Pending Review';}).length
+    };
+  },[data,now]);
+
+  /* mutations */
+  function prepend(patch){setData(function(d){var nx=Object.assign({},d);Object.keys(patch).forEach(function(k){nx[k]=patch[k].concat(d[k]);});return nx;});}
+  function resolveOutage(row,f){
+    var rec=Date.now(),st=parseTs(row['Outage Start Time'])||rec;
+    var id='INC-'+fmtTs(rec).slice(0,10).replace(/-/g,'')+'-'+pad(data.Critical_Outages_Audit.length+1,3);
+    var ent=row['User / Entity'];
+    var a={'Incident ID':id,'Outage Start Time':row['Outage Start Time'],'Recovery Time':fmtTs(rec),Duration:fmtDur(rec-st),'Zone / Feeder':row.Zone,'User / Entity':ent,'Outage Type':row['Outage Type'],'Resolution Category':f.category,'Action Taken / Root Cause Details':f.details,'Technician / Verified By':f.tech,'Audit Status':'Closed'};
+    var isUser=data.Users_DB.some(function(u){return u.UserName===ent;});
+    setData(function(d){return Object.assign({},d,{
+      Ongoing_Outages:d.Ongoing_Outages.filter(function(r){return !(r['Outage Start Time']===row['Outage Start Time']&&r['User / Entity']===ent);}),
+      Critical_Outages_Audit:[a].concat(d.Critical_Outages_Audit),
+      Live_Feed:isUser?[{Timestamp:fmtTs(rec),UserName:ent,Event:'CONNECTED'}].concat(d.Live_Feed):d.Live_Feed});});
+    setModal(null);
+    post({action:'resolve',startTime:row['Outage Start Time'],entity:ent,category:f.category,actionTaken:f.details,technician:f.tech}).then(function(r){report(r,'Resolved '+ent+' as '+id);});
+  }
+  function addNote(row){
+    prepend({Customer_Notes:[row]});
+    post({action:'append',sheet:'Customer_Notes',row:row}).then(function(r){report(r,'Field note added');});
+  }
+  function setProposal(row,status,note,applyToUser){
+    var match={UserName:row.UserName,FieldToModify:row.FieldToModify,ProposedValue:row.ProposedValue};
+    setData(function(d){
+      var nx=Object.assign({},d);
+      nx.Proposed_Modifications=d.Proposed_Modifications.map(function(r){return (r.UserName===row.UserName&&r.FieldToModify===row.FieldToModify&&r.ProposedValue===row.ProposedValue)?Object.assign({},r,{Status:status,'Implementation Notes':note}):r;});
+      if(applyToUser)nx.Users_DB=d.Users_DB.map(function(u){if(u.UserName!==row.UserName)return u;var c=Object.assign({},u);c[row.FieldToModify]=row.ProposedValue;return c;});
+      return nx;});
+    var ops=[{action:'update',sheet:'Proposed_Modifications',match:match,set:{Status:status,'Implementation Notes':note}}];
+    if(applyToUser){var s={};s[row.FieldToModify]=row.ProposedValue;ops.push({action:'update',sheet:'Users_DB',match:{UserName:row.UserName},set:s});}
+    post({action:'batch',ops:ops}).then(function(r){report(r,status+': '+row.UserName+' / '+row.FieldToModify);});
+  }
+  function addProposals(list){
+    prepend({Proposed_Modifications:list});
+    if(list.length)post({action:'batch',ops:list.map(function(r){return {action:'append',sheet:'Proposed_Modifications',row:r};})}).then(function(r){report(r,list.length+' suggestions staged for review');});
+  }
+  function applySim(rows,msg){
+    var patch={};Object.keys(rows).forEach(function(k){if(rows[k].length)patch[k]=rows[k];});
+    if(patch.Critical_Outages_Audit)patch.Critical_Outages_Audit=patch.Critical_Outages_Audit.map(function(r){var c=Object.assign({},r);c['Incident ID']='INC-'+fmtTs(Date.now()).slice(0,10).replace(/-/g,'')+'-'+pad(data.Critical_Outages_Audit.length+1,3);return c;});
+    prepend(patch);
+    var ops=[];Object.keys(patch).forEach(function(k){patch[k].slice().reverse().forEach(function(r){ops.push({action:'append',sheet:k,row:r});});});
+    if(ops.length)post({action:'batch',ops:ops}).then(function(r){report(r,msg);});else toast(msg,'info');
+  }
+
+  /* tabs */
+  var TABS=[['overview','Overview','grid'],['ongoing','Ongoing outages','alert'],['audit','Critical audit','shield'],['filtered','Filtered events','filter'],['subs','Subscribers','users'],['notes','Customer notes','note'],['learn','Self-learning','spark']];
+  var counts={ongoing:data.Ongoing_Outages.length,learn:D.pending};
+
+  var views={
+    overview:function(){return OverviewTab({data:data,D:D,now:now,simZone:simZone,setSimZone:setSimZone,applySim:applySim,toast:toast});},
+    ongoing:function(){return OngoingTab({rows:data.Ongoing_Outages,now:now,onResolve:function(r){setModal({type:'resolve',row:r});}});},
+    audit:function(){return AuditTab({rows:data.Critical_Outages_Audit});},
+    filtered:function(){return FilteredTab({rows:data.Filtered_Events});},
+    subs:function(){return SubsTab({rows:data.Users_DB,offline:D.offline});},
+    notes:function(){return NotesTab({rows:data.Customer_Notes,users:data.Users_DB,onAdd:addNote});},
+    learn:function(){return LearnTab({rows:data.Proposed_Modifications,data:data,onSet:setProposal,onAdd:addProposals,toast:toast});}
+  };
+
+  return div({className:'min-h-screen'},
+    header({style:{borderBottom:'1px solid var(--line)',background:'var(--panel)'}},
+      div({className:'flex flex-wrap items-center gap-3',style:{padding:'12px 18px'}},
+        div({style:{flex:'1 1 260px'}},
+          h1({style:{margin:0,fontSize:20,fontWeight:700,letterSpacing:'-0.01em'}},'Badvel NOC'),
+          para({className:'muted',style:{margin:0,fontSize:12.5}},'Autonomous monitoring engine for 9 electrical micro-zones. Database: webapp 2.0 v2')),
+        div({className:'pill '+(mode==='live'?'live':'mock'),title:syncErr||''},h('i',null),span(null,mode==='live'?'Google Sheets Sync: Live Connected':'Google Sheets Sync: Offline Mock Mode')),
+        lastSync?span({className:'muted mono'},'Last sync '+fmtTs(lastSync).slice(11)):null,
+        button({className:'btn btn-primary',disabled:syncing,onClick:function(){sync(true);}},Icon('refresh',15),syncing?'Syncing...':'Sync now'),
+        button({className:'btn',onClick:function(){setModal({type:'settings'});}},Icon('sliders',15),'Settings'),
+        button({className:'btn',onClick:function(){setModal({type:'script'});}},Icon('code',15),'Apps Script'))),
+    div({className:'lg:flex',style:{gap:20,padding:'16px 18px',maxWidth:1500,margin:'0 auto'}},
+      nav({className:'sidenav lg:block',style:{flex:'none',width:'100%',maxWidth:230},'aria-label':'Sections'},
+        TABS.map(function(t){return button({key:t[0],className:'nav-btn'+(tab===t[0]?' on':''),onClick:function(){setTab(t[0]);},'aria-current':tab===t[0]?'page':undefined},Icon(t[2],16),t[1],counts[t[0]]?span({className:'cnt'+(t[0]==='learn'?' i':'')},counts[t[0]]):null);})),
+      main({style:{flex:'1 1 0',minWidth:0},className:'mt-3 lg:mt-0'},views[tab]())),
+    modal&&modal.type==='settings'?SettingsModal({cfg:cfg,onClose:function(){setModal(null);},onSave:function(c){setCfg(c);saveCfg(c);setModal(null);doSync(c,true);}}):null,
+    modal&&modal.type==='script'?ScriptDrawer({onClose:function(){setModal(null);},toast:toast}):null,
+    modal&&modal.type==='resolve'?ResolveModal({row:modal.row,onClose:function(){setModal(null);},onConfirm:function(f){resolveOutage(modal.row,f);}}):null,
+    div({className:'toasts','aria-live':'polite'},toasts.map(function(t){return div({key:t.id,className:'toast '+t.kind},t.msg);})));
+}
+
+/* ---------- Overview ---------- */
+function Kpi(lbl,val,hint,tone){return div({className:'kpi',key:lbl},div({className:'muted',style:{fontSize:12.5}},lbl),div({className:'v',style:tone?{color:'var(--'+tone+')'}:null},val),div({className:'faint',style:{fontSize:12,marginTop:2}},hint));}
+
+function OverviewTab(P){
+  var D=P.D,data=P.data;
+  var recent=data.Alerts.slice().sort(function(a,b){return a.Timestamp<b.Timestamp?1:-1;}).slice(0,7);
+  return div({className:'space-y-4'},
+    div({className:'kpis'},
+      Kpi('Total monitored subscribers',D.total,'Rows in Users_DB'),
+      Kpi('Active nodes online',D.online,(D.total-D.online)+' offline right now','ok'),
+      Kpi('Active critical outages',D.crit,'Open in Ongoing_Outages',D.crit?'crit':null),
+      Kpi('Filtered power cuts today',D.filteredToday,'Silenced, not actionable','warn'),
+      Kpi('24h area blackouts',D.blackouts,'Feeder-wide dark events')),
+    Panel('Micro-zone status',div({className:'muted',style:{fontSize:12.5,display:'flex',gap:14,flexWrap:'wrap'}},
+        span(null,Badge('Normal','ok')),span(null,Badge('Grid cut','warn')),span(null,Badge('Fiber fault','crit')),span({className:'faint'},'Each square is one subscriber. Select a zone to aim the simulator.')),
+      div({className:'grid gap-3 sm:grid-cols-2 xl:grid-cols-3',style:{padding:14}},D.zones.map(function(z){
+        var tone=z.status==='fault'?'crit':z.status==='grid'?'warn':'ok';
+        return button({key:z.id,className:'zone z-'+z.status+(P.simZone===z.id?' sel':''),onClick:function(){P.setSimZone(z.id);},'aria-pressed':P.simZone===z.id},
+          div({style:{display:'flex',justifyContent:'space-between',gap:8,alignItems:'flex-start'}},strong({style:{fontWeight:600}},z.id),Badge(z.status==='fault'?'Fiber fault':z.status==='grid'?'Grid cut':'Normal',tone)),
+          div({className:'muted',style:{fontSize:12.5,marginTop:4}},(z.users.length-z.off.length)+' of '+z.users.length+' online'+(z.ong.length?', '+z.ong.length+' open outage'+(z.ong.length>1?'s':''):'')),
+          div({className:'pix'},z.users.map(function(u){
+            var off=D.offline[u.UserName];
+            return h('i',{key:u.UserName,title:u.UserName+(off?' (offline)':''),className:off?(u.BackupPower==='Yes'?'f':'g'):''});})));}))),
+    div({className:'grid gap-4 xl:grid-cols-3'},
+      div({className:'xl:col-span-2'},Simulator({data:data,D:D,zone:P.simZone,setZone:P.setSimZone,applySim:P.applySim,toast:P.toast})),
+      Panel('Latest alerts',null,div({style:{padding:'4px 0'}},recent.map(function(a,i){
+        return div({key:i,style:{padding:'9px 16px',borderBottom:'1px solid var(--line)'}},
+          div({style:{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}},Badge(a.Severity,sevTone(a.Severity)),strong({style:{fontWeight:600,fontSize:13}},a['Alert Type']),span({className:'mono faint'},String(a.Timestamp).slice(5,16))),
+          div({className:'muted',style:{fontSize:12.5,marginTop:3}},a.Zone+' / '+a['User / Entity']+': '+a.Message));}))))
+  );
+}
+
+function Simulator(P){
+  var s1=useState('grid'),mode=s1[0],setMode=s1[1];
+  var s2=useState('zone'),scope=s2[0],setScope=s2[1];
+  var s3=useState(''),node=s3[0],setNode=s3[1];
+  var s4=useState(2),bounce=s4[0],setBounce=s4[1];
+  var s5=useState(false),push=s5[0],setPush=s5[1];
+  var s6=useState(null),res=s6[0],setRes=s6[1];
+  var zoneUsers=P.data.Users_DB.filter(function(u){return u.Zone===P.zone;});
+  var nodeSel=zoneUsers.some(function(u){return u.UserName===node;})?node:(zoneUsers[0]?zoneUsers[0].UserName:'');
+  var effScope=mode==='flap'?'node':scope;
+  function run(){
+    var ong={};P.data.Ongoing_Outages.forEach(function(r){ong[r['User / Entity']]=1;});
+    var r=runSim({mode:mode,scope:effScope,zone:P.zone,node:nodeSel,bounce:bounce},P.data.Users_DB,Date.now(),ong);
+    r.pushed=push;r.mode=mode;setRes(r);
+    if(push)P.applySim(r.rows,'Simulation pushed to Live_Feed and derived tabs');
+  }
+  function reconnect(){
+    var ts=fmtTs(Date.now());
+    var rows={Live_Feed:res.reconnect.map(function(u){return {Timestamp:ts,UserName:u.UserName,Event:'CONNECTED'};}),Filtered_Events:[],Alerts:[],Ongoing_Outages:[],Critical_Outages_Audit:[]};
+    P.applySim(rows,'Reconnect events sent for '+res.reconnect.length+' nodes');
+    setRes(Object.assign({},res,{reconnect:[]}));
+  }
+  var counts={};if(res)Object.keys(res.rows).forEach(function(k){if(res.rows[k].length)counts[k]=res.rows[k].length;});
+  return Panel('Event stream simulator',span({className:'muted',style:{fontSize:12.5}},'Replay a grid trip, a fiber cut or a flap and watch the engine decide'),
+    div({style:{padding:16}},
+      div({className:'grid gap-3 md:grid-cols-2'},
+        div({className:'space-y-3'},
+          Field('Event type',Seg({value:mode,onChange:setMode,options:[['grid','Grid trip'],['fiber','Fiber cut'],['flap','Flap']]})),
+          Field('Zone',select({className:'inp',value:P.zone,onChange:function(e){P.setZone(e.target.value);}},ZONES.map(function(z){return option({key:z.id,value:z.id},z.id);}))),
+          mode!=='flap'?Field('Scope',Seg({value:scope,onChange:setScope,options:[['zone','Entire zone'],['node','Single node']]})):null,
+          effScope==='node'?Field('Node',select({className:'inp',value:nodeSel,onChange:function(e){setNode(e.target.value);}},zoneUsers.map(function(u){return option({key:u.UserName,value:u.UserName},u.UserName+' ('+(u.BackupPower==='Yes'?'backup':'no backup')+', hysteresis '+u.AlarmHysteresis+')');}))):null,
+          mode==='flap'?Field('Bounce length (minutes)',input({className:'inp',type:'number',min:1,max:60,value:bounce,onChange:function(e){setBounce(e.target.value);}})):null,
+          label({style:{display:'flex',gap:8,alignItems:'center',fontSize:13}},input({type:'checkbox',checked:push,onChange:function(e){setPush(e.target.checked);}}),'Push events to the Live_Feed sheet and derived tabs'),
+          div({style:{display:'flex',gap:8,flexWrap:'wrap'}},button({className:'btn btn-primary',onClick:run,disabled:!zoneUsers.length},Icon('play',14),push?'Run and push':'Run dry simulation'),
+            res&&res.reconnect&&res.reconnect.length&&res.pushed?button({className:'btn btn-ok',onClick:reconnect},Icon('check',14),'Send reconnect events'):null)),
+        div(null,
+          div({className:'muted',style:{fontSize:12.5,marginBottom:6}},'Engine trace'),
+          !res?div({className:'empty',style:{border:'1px dashed var(--line2)',borderRadius:8}},'Pick an event and run it. Nothing is written unless the push box is ticked.'):
+          div(null,
+            res.trace.map(function(t,i){return div({key:i,className:'trace '+t.kind},t.text);}),
+            div({className:'muted',style:{fontSize:12.5,marginTop:8}},res.pushed?'Written: '+(Object.keys(counts).map(function(k){return counts[k]+' to '+k;}).join(', ')||'nothing'):'Dry run. Would write: '+(Object.keys(counts).map(function(k){return counts[k]+' to '+k;}).join(', ')||'nothing')))))));
+}
+
+/* ---------- Ongoing ---------- */
+function OngoingTab(P){
+  var cols=[
+    {key:'Outage Start Time',label:'Outage Start Time',mono:true},
+    {key:'Severity',label:'Severity',render:function(r){return Badge(r.Severity,sevTone(r.Severity));}},
+    {key:'Outage Type',label:'Outage Type'},
+    {key:'Zone',label:'Zone'},
+    {key:'User / Entity',label:'User / Entity',render:function(r){return strong({style:{fontWeight:600}},r['User / Entity']);}},
+    {key:'Duration (Ongoing)',label:'Duration (Ongoing)',mono:true,sortVal:function(r){return P.now-(parseTs(r['Outage Start Time'])||P.now);},render:function(r){var t=parseTs(r['Outage Start Time']);return t?fmtDur(P.now-t):r['Duration (Ongoing)'];}},
+    {key:'Status',label:'Status',render:function(r){return Badge(r.Status,statusTone(r.Status));}},
+    {key:'Impact / Root Cause Assessment',label:'Impact / Root Cause Assessment',wrap:true},
+    {key:'_a',label:'Action',nosort:true,render:function(r){return button({className:'btn btn-ok btn-sm',onClick:function(){P.onResolve(r);}},Icon('check',13),'Mark resolved');}}
+  ];
+  return Panel('Ongoing outages',span({className:'muted',style:{fontSize:12.5}},P.rows.length+' open'),DataTable({cols:cols,rows:P.rows,defaultSort:{key:'Outage Start Time',dir:'asc'},empty:'No open outages. The network is clean.'}));
+}
+function ResolveModal(P){
+  var a=useState('Action Taken'),cat=a[0],setCat=a[1];
+  var b=useState(''),det=b[0],setDet=b[1];
+  var c=useState('NOC operator'),tech=c[0],setTech=c[1];
+  return Modal({title:'Resolve '+P.row['User / Entity'],onClose:P.onClose},
+    div({className:'space-y-3'},
+      para({className:'muted',style:{margin:0}},'Recovery time is stamped now. The incident moves to Critical_Outages_Audit and the row leaves Ongoing_Outages.'),
+      Field('Resolution category',Seg({value:cat,onChange:setCat,options:[['Action Taken','Action taken'],['Self-Healed','Self-healed']]})),
+      Field('Action taken / root cause details',textarea({className:'inp',value:det,onChange:function(e){setDet(e.target.value);},placeholder:'What was found and what was done'})),
+      Field('Technician / verified by',input({className:'inp',value:tech,onChange:function(e){setTech(e.target.value);}})),
+      div({style:{display:'flex',gap:8,justifyContent:'flex-end'}},button({className:'btn',onClick:P.onClose},'Cancel'),
+        button({className:'btn btn-ok',disabled:!det.trim(),onClick:function(){P.onConfirm({category:cat,details:det.trim(),tech:tech.trim()||'NOC operator'});}},'Mark resolved'))));
+}
+
+/* ---------- Audit ---------- */
+function AuditTab(P){
+  var a=useState('all'),f=a[0],setF=a[1];var b=useState(''),q=b[0],setQ=b[1];
+  var rows=useMemo(function(){var s=q.toLowerCase();return P.rows.filter(function(r){return (f==='all'||r['Resolution Category']===f)&&(!s||(r['User / Entity']+' '+r['Zone / Feeder']+' '+r['Incident ID']).toLowerCase().indexOf(s)>=0);});},[P.rows,f,q]);
+  var cols=[
+    {key:'Incident ID',label:'Incident ID',mono:true},{key:'Outage Start Time',label:'Outage Start Time',mono:true},{key:'Recovery Time',label:'Recovery Time',mono:true},
+    {key:'Duration',label:'Duration',mono:true,sortVal:function(r){return (parseTs(r['Recovery Time'])||0)-(parseTs(r['Outage Start Time'])||0);}},
+    {key:'Zone / Feeder',label:'Zone / Feeder'},{key:'User / Entity',label:'User / Entity'},{key:'Outage Type',label:'Outage Type'},
+    {key:'Resolution Category',label:'Resolution Category',render:function(r){return Badge(r['Resolution Category'],r['Resolution Category']==='Self-Healed'?'info':'warn');}},
+    {key:'Action Taken / Root Cause Details',label:'Action Taken / Root Cause Details',wrap:true},
+    {key:'Technician / Verified By',label:'Technician / Verified By'},
+    {key:'Audit Status',label:'Audit Status',render:function(r){return Badge(r['Audit Status'],statusTone(r['Audit Status']));}}];
+  return Panel('Critical outages audit',div({style:{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center'}},
+      Seg({value:f,onChange:setF,options:[['all','All'],['Self-Healed','Self-healed'],['Action Taken','Action taken']]}),SearchBox({value:q,onChange:setQ,placeholder:'Search user, zone or incident'})),
+    DataTable({cols:cols,rows:rows,pageSize:15,defaultSort:{key:'Outage Start Time',dir:'desc'},empty:'No incidents match this filter.'}));
+}
+
+/* ---------- Filtered ---------- */
+function FilteredTab(P){
+  var a=useState('all'),f=a[0],setF=a[1];var b=useState(''),q=b[0],setQ=b[1];
+  var cats=['all'].concat(Array.from(new Set(P.rows.map(function(r){return r['Filter Category'];}))));
+  var rows=useMemo(function(){var s=q.toLowerCase();return P.rows.filter(function(r){return (f==='all'||r['Filter Category']===f)&&(!s||(r.UserName+' '+r['Zone / Sector']).toLowerCase().indexOf(s)>=0);});},[P.rows,f,q]);
+  var tone={'Routine Power Cut':'warn','Unbacked Node':'mute','Out-of-Schedule':'info','Hysteresis Buffered':'ok'};
+  var cols=[
+    {key:'Timestamp',label:'Timestamp',mono:true},{key:'UserName',label:'UserName'},
+    {key:'Event',label:'Event',render:function(r){return Badge(r.Event,r.Event==='CONNECTED'?'ok':'crit');}},
+    {key:'Zone / Sector',label:'Zone / Sector'},
+    {key:'Filter Category',label:'Filter Category',render:function(r){return Badge(r['Filter Category'],tone[r['Filter Category']]||'mute');}},
+    {key:'Reason for Filter',label:'Reason for Filter',wrap:true},
+    {key:'Subscriber Classification (Users_DB)',label:'Subscriber Classification (Users_DB)'}];
+  return Panel('Filtered events: why alarms were silenced',div({style:{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center'}},
+      select({className:'inp',style:{width:200},value:f,onChange:function(e){setF(e.target.value);},'aria-label':'Filter category'},cats.map(function(c){return option({key:c,value:c},c==='all'?'All categories':c);})),
+      SearchBox({value:q,onChange:setQ,placeholder:'Search user or zone'})),
+    DataTable({cols:cols,rows:rows,pageSize:15,defaultSort:{key:'Timestamp',dir:'desc'},empty:'No filtered events match.'}));
+}
+
+/* ---------- Subscribers ---------- */
+function SubsTab(P){
+  var a=useState(''),q=a[0],setQ=a[1];var b=useState('all'),z=b[0],setZ=b[1];var c=useState('all'),bk=c[0],setBk=c[1];
+  var rows=useMemo(function(){var s=q.toLowerCase();return P.rows.filter(function(r){return (z==='all'||r.Zone===z)&&(bk==='all'||r.BackupPower===bk)&&(!s||r.UserName.toLowerCase().indexOf(s)>=0);});},[P.rows,q,z,bk]);
+  var cols=[
+    {key:'UserName',label:'UserName',render:function(r){return span({style:{display:'inline-flex',alignItems:'center',gap:7}},h('i',{style:{width:8,height:8,borderRadius:'50%',display:'block',background:P.offline[r.UserName]?'var(--crit)':'var(--ok)'},title:P.offline[r.UserName]?'Offline':'Online'}),strong({style:{fontWeight:600}},r.UserName));}},
+    {key:'ClientType',label:'ClientType'},{key:'Schedule',label:'Schedule'},{key:'24/7',label:'24/7'},
+    {key:'BackupPower',label:'BackupPower',render:function(r){return Badge(r.BackupPower,r.BackupPower==='Yes'?'ok':r.BackupPower==='Degraded'?'warn':'mute');}},
+    {key:'Latitude',label:'Latitude',mono:true},{key:'Longitude',label:'Longitude',mono:true},{key:'Zone',label:'Zone'},
+    {key:'AlarmHysteresis',label:'AlarmHysteresis',render:function(r){return r.AlarmHysteresis+' min';}}];
+  return Panel('Subscribers directory (Users_DB)',div({style:{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center'}},
+      SearchBox({value:q,onChange:setQ,placeholder:'Search username'}),
+      select({className:'inp',style:{width:230},value:z,onChange:function(e){setZ(e.target.value);},'aria-label':'Zone'},[option({key:'all',value:'all'},'All zones')].concat(ZONES.map(function(x){return option({key:x.id,value:x.id},x.id);}))),
+      select({className:'inp',style:{width:170},value:bk,onChange:function(e){setBk(e.target.value);},'aria-label':'Backup power'},[['all','Any backup status'],['Yes','Backup: Yes'],['No','Backup: No'],['Degraded','Backup: Degraded']].map(function(o){return option({key:o[0],value:o[0]},o[1]);}))),
+    DataTable({cols:cols,rows:rows,pageSize:25,empty:'No subscribers match these filters.'}));
+}
+
+/* ---------- Notes ---------- */
+function NotesTab(P){
+  var blank={UserName:'',who:'',issue:'',fix:'',cause:ROOT_CAUSES[0],status:'Open'};
+  var a=useState(blank),f=a[0],setF=a[1];var b=useState(false),open=b[0],setOpen=b[1];
+  function set(k){return function(e){var v=e.target.value;setF(function(o){var n=Object.assign({},o);n[k]=v;return n;});};}
+  function submit(){
+    P.onAdd({'Date / Timestamp':fmtTs(Date.now()),UserName:f.UserName.trim(),'Customer Name / Contact':f.who.trim(),'Complaint / Issue Reported':f.issue.trim(),'Resolution Taken / Action Details':f.fix.trim(),'Root Cause Category':f.cause,Status:f.status});
+    setF(blank);setOpen(false);
+  }
+  var tone={Open:'warn','In Progress':'info',Monitoring:'info',Resolved:'ok'};
+  var cols=[
+    {key:'Date / Timestamp',label:'Date / Timestamp',mono:true},{key:'UserName',label:'UserName'},{key:'Customer Name / Contact',label:'Customer Name / Contact'},
+    {key:'Complaint / Issue Reported',label:'Complaint / Issue Reported',wrap:true},{key:'Resolution Taken / Action Details',label:'Resolution Taken / Action Details',wrap:true},
+    {key:'Root Cause Category',label:'Root Cause Category'},{key:'Status',label:'Status',render:function(r){return Badge(r.Status,tone[r.Status]||'mute');}}];
+  var valid=f.UserName.trim()&&f.issue.trim();
+  return div({className:'space-y-4'},
+    Panel('Customer notes and field actions',button({className:'btn btn-primary',onClick:function(){setOpen(!open);}},Icon('plus',14),open?'Close form':'Add field visit note'),
+      div(null,
+        open?div({style:{padding:16,borderBottom:'1px solid var(--line)'}},
+          div({className:'grid gap-3 md:grid-cols-2'},
+            Field('UserName',div(null,input({className:'inp',list:'users-list',value:f.UserName,onChange:set('UserName'),placeholder:'Start typing a username'}),datalist({id:'users-list'},P.users.map(function(u){return option({key:u.UserName,value:u.UserName});})))),
+            Field('Customer name / contact',input({className:'inp',value:f.who,onChange:set('who')})),
+            Field('Complaint / issue reported',textarea({className:'inp',value:f.issue,onChange:set('issue')})),
+            Field('Resolution taken / action details',textarea({className:'inp',value:f.fix,onChange:set('fix')})),
+            Field('Root cause category',select({className:'inp',value:f.cause,onChange:set('cause')},ROOT_CAUSES.map(function(c){return option({key:c,value:c},c);}))),
+            Field('Status',select({className:'inp',value:f.status,onChange:set('status')},['Open','In Progress','Monitoring','Resolved'].map(function(c){return option({key:c,value:c},c);})))),
+          div({style:{marginTop:12,display:'flex',gap:8}},button({className:'btn btn-primary',disabled:!valid,onClick:submit},'Save note'),span({className:'muted',style:{alignSelf:'center',fontSize:12.5}},'Username and complaint are required.'))):null,
+        DataTable({cols:cols,rows:P.rows,pageSize:12,defaultSort:{key:'Date / Timestamp',dir:'desc'},empty:'No field notes yet.'}))));
+}
+
+/* ---------- Self-learning ---------- */
+function LearnTab(P){
+  var a=useState(null),sum=a[0],setSum=a[1];
+  function run(){
+    var r=runAudit(P.data);
+    P.onAdd(r.proposals);
+    setSum(r);
+    P.toast(r.proposals.length?r.proposals.length+' new suggestions added to the staging area.':'Audit complete. No new suggestions.','info');
+  }
+  var tone={'Pending Review':'warn',Staged:'info',Implemented:'ok',Rejected:'mute'};
+  var cols=[
+    {key:'UserName',label:'UserName',render:function(r){return strong({style:{fontWeight:600}},r.UserName);}},{key:'FieldToModify',label:'FieldToModify'},
+    {key:'CurrentValue',label:'CurrentValue'},{key:'ProposedValue',label:'ProposedValue'},
+    {key:'Reason / Evidence',label:'Reason / Evidence',wrap:true},
+    {key:'Status',label:'Status',render:function(r){return Badge(r.Status,tone[r.Status]||'mute');}},
+    {key:'Implementation Notes',label:'Implementation Notes',wrap:true},
+    {key:'_a',label:'Action',nosort:true,render:function(r){
+      if(r.Status==='Pending Review')return div({style:{display:'flex',gap:6}},
+        button({className:'btn btn-ok btn-sm',onClick:function(){P.onSet(r,'Staged','Approved and staged for implementation',false);}},Icon('check',13),'Approve & stage'),
+        button({className:'btn btn-sm',onClick:function(){P.onSet(r,'Rejected','Rejected in review',false);}},'Reject'));
+      if(r.Status==='Staged'){var inDb=r.FieldToModify==='AlarmHysteresis'||r.FieldToModify==='BackupPower';
+        return button({className:'btn btn-primary btn-sm',onClick:function(){P.onSet(r,'Implemented',inDb?'Applied to Users_DB':'Marked implemented (manual field work)',inDb);}},inDb?'Apply to Users_DB':'Mark implemented');}
+      return span({className:'faint'},'-');}}
+  ];
+  return div({className:'space-y-4'},
+    Panel('Self-learning staging area',button({className:'btn btn-primary',onClick:run},Icon('spark',14),'Run self-learning audit'),
+      div(null,
+        sum?div({style:{padding:'14px 16px',borderBottom:'1px solid var(--line)',background:'var(--panel2)'}},
+          div({style:{fontWeight:600,marginBottom:4}},'Audit read '+sum.stats.audit+' audit incidents, '+sum.stats.notes+' customer notes and '+sum.stats.feed+' live feed events.'),
+          sum.notes.length?sum.notes.map(function(n,i){return div({key:i,className:'muted',style:{fontSize:13}},n);}):div({className:'muted'},'Nothing new beyond what is already proposed.')):
+        div({style:{padding:'12px 16px',borderBottom:'1px solid var(--line)'},className:'muted'},'The audit looks for flapping nodes that need a 15 minute hysteresis, degraded batteries, and zones with repeated fiber cuts that need route hardening. Suggestions appear below for review.'),
+        DataTable({cols:cols,rows:P.rows,pageSize:12,empty:'No proposals yet. Run the audit to generate some.'}))));
+}
+
+/* ---------- Settings & script ---------- */
+function SettingsModal(P){
+  var a=useState(P.cfg.url),url=a[0],setUrl=a[1];var b=useState(P.cfg.sheetId),sid=b[0],setSid=b[1];var c=useState(P.cfg.interval),iv=c[0],setIv=c[1];
+  var bad=url.trim()&&!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/.test(url.trim());
+  return Modal({title:'Google Sheets connection',onClose:P.onClose},
+    div({className:'space-y-3'},
+      Field('Apps Script Web App deployment URL',input({className:'inp',value:url,onChange:function(e){setUrl(e.target.value);},placeholder:'https://script.google.com/macros/s/.../exec'})),
+      bad?div({style:{color:'var(--warn)',fontSize:12.5}},'This does not look like a Web App URL. It should end in /exec.'):null,
+      Field('Spreadsheet ID',input({className:'inp mono',value:sid,onChange:function(e){setSid(e.target.value);}})),
+      Field('Auto-sync interval (seconds, minimum 5)',input({className:'inp',type:'number',min:5,value:iv,onChange:function(e){setIv(e.target.value);}})),
+      para({className:'muted',style:{margin:0,fontSize:12.5}},'Leave the URL empty to run on the embedded mock data. If the endpoint cannot be reached, the dashboard keeps working on local data and the header shows Offline Mock Mode.'),
+      div({style:{display:'flex',gap:8,justifyContent:'flex-end'}},button({className:'btn',onClick:P.onClose},'Cancel'),
+        button({className:'btn btn-primary',onClick:function(){P.onSave({url:url.trim(),sheetId:sid.trim()||SHEET_ID_DEFAULT,interval:Math.max(5,Number(iv)||30)});}},'Save and sync now'))));
+}
+function ScriptDrawer(P){
+  var el=document.getElementById('gas-src'),code=el?el.textContent:'';
+  function copy(){
+    function fallback(){var t=document.createElement('textarea');t.value=code;document.body.appendChild(t);t.select();try{document.execCommand('copy');P.toast('Apps Script code copied.','ok');}catch(e){P.toast('Copy failed. Select the code and copy it manually.','warn');}document.body.removeChild(t);}
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(code).then(function(){P.toast('Apps Script code copied.','ok');},fallback);else fallback();
+  }
+  return Modal({title:'Apps Script reference (doGet and doPost)',onClose:P.onClose,side:true},
+    div({className:'space-y-3'},
+      h('ol',{className:'muted',style:{margin:0,paddingLeft:18,fontSize:13,lineHeight:1.7}},
+        h('li',null,'Open the spreadsheet, then Extensions > Apps Script.'),
+        h('li',null,'Replace the contents of Code.gs with the code below and save.'),
+        h('li',null,'Deploy > New deployment > Web app. Execute as: Me. Who has access: Anyone.'),
+        h('li',null,'Copy the /exec URL into Settings here. After any code change, deploy a new version.')),
+      div({style:{display:'flex',gap:8}},button({className:'btn btn-primary',onClick:copy},Icon('copy',14),'Copy code')),
+      div({className:'code',tabIndex:0,role:'region','aria-label':'Apps Script source'},code)));
+}
+
+/* components that use hooks must be rendered as real components, not called as plain functions */
+function asComponent(fn){return function(p){return h.apply(null,[fn,p].concat([].slice.call(arguments,1)));};}
+Modal=asComponent(Modal);DataTable=asComponent(DataTable);Simulator=asComponent(Simulator);
+OverviewTab=asComponent(OverviewTab);OngoingTab=asComponent(OngoingTab);AuditTab=asComponent(AuditTab);FilteredTab=asComponent(FilteredTab);
+SubsTab=asComponent(SubsTab);NotesTab=asComponent(NotesTab);LearnTab=asComponent(LearnTab);
+SettingsModal=asComponent(SettingsModal);ScriptDrawer=asComponent(ScriptDrawer);ResolveModal=asComponent(ResolveModal);
+
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+})();
+</script>
+</body>
+</html>
