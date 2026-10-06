@@ -288,7 +288,27 @@ var ROOT_CAUSES=['Fiber Cut - Drop Cable','Fiber Cut - Duct','Fiber Cut - Aerial
 var IST_MS=330*60000;
 function pad(n,l){return String(n).padStart(l||2,'0');}
 function fmtTs(d){var x=new Date((d instanceof Date?d.getTime():d)+IST_MS);return x.getUTCFullYear()+'-'+pad(x.getUTCMonth()+1)+'-'+pad(x.getUTCDate())+' '+pad(x.getUTCHours())+':'+pad(x.getUTCMinutes())+':'+pad(x.getUTCSeconds());}
-function parseTs(s){var t=Date.parse(String(s||'').replace(' ','T')+'+05:30');return isNaN(t)?null:t;}
+var MONTHS={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+function mkIst(y,mo,d,hh,mi,ss,ap){
+  hh=+hh;if(ap){ap=ap.toLowerCase();if(ap==='pm'&&hh<12)hh+=12;if(ap==='am'&&hh===12)hh=0;}
+  if(y<100)y+=2000;var t=Date.UTC(y,mo-1,d,hh,+mi,+(ss||0))-IST_MS;return isNaN(t)?null:t;}
+function parseTs(s){
+  if(s instanceof Date)return s.getTime();
+  if(typeof s!=='string')return null;
+  s=s.trim();if(!s)return null;
+  var m,nowIst=new Date(Date.now()+IST_MS);
+  if(m=/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*([AaPp][Mm])?)?/.exec(s))return mkIst(+m[1],+m[2],+m[3],m[4]||0,m[5]||0,m[6],m[7]);
+  if(m=/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})(?:[ T,]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?)?/.exec(s))return mkIst(+m[3],+m[2],+m[1],m[4]||0,m[5]||0,m[6],m[7]);
+  if(m=/^(\d{1,2})[ \-]([A-Za-z]{3})[A-Za-z]*[ \-,]*(\d{4})?[ ,]*(?:(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?)?$/.exec(s)){
+    var mo=MONTHS[m[2].toLowerCase()];if(!mo)return null;
+    var t1=mkIst(m[3]?+m[3]:nowIst.getUTCFullYear(),mo,+m[1],m[4]||0,m[5]||0,m[6],m[7]);
+    if(t1&&!m[3]&&t1>Date.now()+3600000)t1=mkIst(nowIst.getUTCFullYear()-1,mo,+m[1],m[4]||0,m[5]||0,m[6],m[7]);
+    return t1;}
+  if(m=/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?$/.exec(s)){
+    var t2=mkIst(nowIst.getUTCFullYear(),nowIst.getUTCMonth()+1,nowIst.getUTCDate(),m[1],m[2],m[3],m[4]);
+    if(t2&&t2>Date.now()+300000)t2-=86400000;return t2;}
+  var f=Date.parse(s);return (!isNaN(f)&&new Date(f).getFullYear()>=2020)?f:null;
+}
 function fmtDur(ms){ms=Math.max(0,ms);var m=Math.floor(ms/60000);if(m<1)return '<1m';var d=Math.floor(m/1440),hh=Math.floor((m%1440)/60),mm=m%60;if(d)return d+'d '+hh+'h';if(hh)return hh+'h '+pad(mm)+'m';return mm+'m';}
 function outsideSchedule(s,ms){
   var m=/(\d\d):(\d\d)-(\d\d):(\d\d)(?:\s+(\w{3})-(\w{3}))?/.exec(s||'');if(!m)return false;
@@ -798,7 +818,7 @@ function OngoingTab(P){
     {key:'Outage Type',label:'Outage Type'},
     {key:'Zone',label:'Zone'},
     {key:'User / Entity',label:'User / Entity',render:function(r){return strong({style:{fontWeight:600}},r['User / Entity']);}},
-    {key:'Duration (Ongoing)',label:'Duration (Ongoing)',mono:true,sortVal:function(r){return P.now-(parseTs(r['Outage Start Time'])||P.now);},render:function(r){var t=parseTs(r['Outage Start Time']);return t?fmtDur(P.now-t):r['Duration (Ongoing)'];}},
+    {key:'Duration (Ongoing)',label:'Duration (Ongoing)',mono:true,sortVal:function(r){return P.now-(parseTs(r['Outage Start Time'])||P.now);},render:function(r){var t=parseTs(r['Outage Start Time']),d=t?P.now-t:-1;return (d>=0&&d<400*86400000)?fmtDur(d):r['Duration (Ongoing)'];}},
     {key:'Status',label:'Status',render:function(r){return Badge(r.Status,statusTone(r.Status));}},
     {key:'Impact / Root Cause Assessment',label:'Impact / Root Cause Assessment',wrap:true},
     {key:'_a',label:'Action',nosort:true,render:function(r){return button({className:'btn btn-ok btn-sm',onClick:function(){P.onResolve(r);}},Icon('check',13),'Mark resolved');}}
